@@ -123,7 +123,7 @@ Each order contains:
 
 ### 1. Clone the repository
 
-git clone Laundry-Order-Management-System
+git clone https://github.com/Sakshisharma1616/Laundry-Order-Management-System.git
 
 cd Laundry-Order-Management-System
 
