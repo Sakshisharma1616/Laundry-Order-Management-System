@@ -131,9 +131,14 @@ cd Laundry-Order-Management-System
 ### 2. Setup environment
 
 python -m venv venv
-venv\Scripts\activate # Windows
-source venv/bin/activate # Mac/Linux
 
+#Windows
+
+venv\Scripts\activate 
+
+#Mac/Linux
+
+source venv/bin/activate 
 
 ### 3. Install dependencies
 
