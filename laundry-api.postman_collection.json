@@ -1,0 +1,688 @@
+{
+  "info": {
+    "name": "Laundry Order Management API",
+    "description": "Complete collection for testing the Laundry Order Management System.\n\nBase URL is stored in the `base_url` collection variable (default: http://localhost:5000).\n\nRun the requests in order:\n1. Create Order → copies order_id into the `order_id` variable automatically\n2. Update Status → uses that order_id\n3. Get Orders (various filters)\n4. Dashboard",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string",
+      "description": "Populated automatically by the 'Create Order' request test script."
+    }
+  ],
+  "item": [
+    {
+      "name": "Orders",
+      "description": "Requests for creating, retrieving, and updating laundry orders.",
+      "item": [
+        {
+          "name": "Create Order — valid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Response has data key', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data');",
+                  "});",
+                  "pm.test('order_id is a UUID', () => {",
+                  "    const { data } = pm.response.json();",
+                  "    pm.expect(data.order_id).to.match(",
+                  "        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i",
+                  "    );",
+                  "    // Save for subsequent requests",
+                  "    pm.collectionVariables.set('order_id', data.order_id);",
+                  "});",
+                  "pm.test('status is RECEIVED', () => {",
+                  "    pm.expect(pm.response.json().data.status).to.eql('RECEIVED');",
+                  "});",
+                  "pm.test('total_bill is 200', () => {",
+                  "    pm.expect(pm.response.json().data.total_bill).to.eql(200);",
+                  "});",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Alice\",\n  \"phone\": \"9876543210\",\n  \"garments\": [\n    { \"type\": \"Shirt\", \"quantity\": 2 },\n    { \"type\": \"Saree\", \"quantity\": 1 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            },
+            "description": "Creates a new order. Automatically saves the returned order_id into the `order_id` collection variable for use in subsequent requests.\n\nExpected total_bill: 2×50 + 1×100 = ₹200"
+          }
+        },
+        {
+          "name": "Create Order — missing customer_name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Response has error key', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});",
+                  "pm.test('Error mentions customer_name', () => {",
+                  "    pm.expect(pm.response.json().error).to.include('customer_name');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\",\n  \"garments\": [\n    { \"type\": \"Shirt\", \"quantity\": 1 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            },
+            "description": "Omits customer_name. Expects HTTP 400 with a descriptive error message."
+          }
+        },
+        {
+          "name": "Create Order — empty garments list",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions garment', () => {",
+                  "    pm.expect(pm.response.json().error.toLowerCase()).to.include('garment');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Bob\",\n  \"phone\": \"1234567890\",\n  \"garments\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            },
+            "description": "Sends an empty garments array. Expects HTTP 400."
+          }
+        },
+        {
+          "name": "Create Order — invalid garment type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions garment type', () => {",
+                  "    pm.expect(pm.response.json().error).to.include('Jacket');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Carol\",\n  \"phone\": \"5555555555\",\n  \"garments\": [\n    { \"type\": \"Jacket\", \"quantity\": 1 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            },
+            "description": "Uses an unsupported garment type 'Jacket'. Expects HTTP 400."
+          }
+        },
+        {
+          "name": "Create Order — non-positive quantity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions quantity', () => {",
+                  "    pm.expect(pm.response.json().error.toLowerCase()).to.include('quantity');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_name\": \"Dave\",\n  \"phone\": \"1111111111\",\n  \"garments\": [\n    { \"type\": \"Pants\", \"quantity\": 0 }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            },
+            "description": "Sends quantity=0. Expects HTTP 400."
+          }
+        },
+        {
+          "name": "Get All Orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has data array', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body).to.have.property('data');",
+                  "    pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": ["{{base_url}}"],
+              "path": ["orders"]
+            },
+            "description": "Returns all orders with no filters applied."
+          }
+        },
+        {
+          "name": "Get Orders — filter by status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All returned orders have status RECEIVED', () => {",
+                  "    const orders = pm.response.json().data;",
+                  "    orders.forEach(o => pm.expect(o.status).to.eql('RECEIVED'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/orders?status=RECEIVED",
+              "host": ["{{base_url}}"],
+              "path": ["orders"],
+              "query": [
+                { "key": "status", "value": "RECEIVED" }
+              ]
+            },
+            "description": "Filters orders by status=RECEIVED. All returned orders must have that status."
+          }
+        },
+        {
+          "name": "Get Orders — filter by customer_name (partial)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All returned orders contain search term in name', () => {",
+                  "    const orders = pm.response.json().data;",
+                  "    orders.forEach(o => {",
+                  "        pm.expect(o.customer_name.toLowerCase()).to.include('ali');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/orders?customer_name=ali",
+              "host": ["{{base_url}}"],
+              "path": ["orders"],
+              "query": [
+                { "key": "customer_name", "value": "ali" }
+              ]
+            },
+            "description": "Case-insensitive partial match on customer_name. 'ali' matches 'Alice', 'Alicia', etc."
+          }
+        },
+        {
+          "name": "Get Orders — filter by phone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All returned orders match phone exactly', () => {",
+                  "    const orders = pm.response.json().data;",
+                  "    orders.forEach(o => pm.expect(o.phone).to.eql('9876543210'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/orders?phone=9876543210",
+              "host": ["{{base_url}}"],
+              "path": ["orders"],
+              "query": [
+                { "key": "phone", "value": "9876543210" }
+              ]
+            },
+            "description": "Exact match on phone number."
+          }
+        },
+        {
+          "name": "Get Orders — combined filters",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All returned orders satisfy both filters', () => {",
+                  "    const orders = pm.response.json().data;",
+                  "    orders.forEach(o => {",
+                  "        pm.expect(o.status).to.eql('RECEIVED');",
+                  "        pm.expect(o.customer_name.toLowerCase()).to.include('ali');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/orders?status=RECEIVED&customer_name=ali",
+              "host": ["{{base_url}}"],
+              "path": ["orders"],
+              "query": [
+                { "key": "status", "value": "RECEIVED" },
+                { "key": "customer_name", "value": "ali" }
+              ]
+            },
+            "description": "Applies status AND customer_name filters simultaneously (AND logic)."
+          }
+        },
+        {
+          "name": "Get Orders — invalid status param",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Response has error key', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/orders?status=UNKNOWN",
+              "host": ["{{base_url}}"],
+              "path": ["orders"],
+              "query": [
+                { "key": "status", "value": "UNKNOWN" }
+              ]
+            },
+            "description": "Passes an invalid status value as a query param. Expects HTTP 400."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Status Updates",
+      "description": "Requests for advancing an order through its lifecycle.",
+      "item": [
+        {
+          "name": "Update Status — RECEIVED → PROCESSING",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Order status is now PROCESSING', () => {",
+                  "    pm.expect(pm.response.json().data.status).to.eql('PROCESSING');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PROCESSING\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "status"]
+            },
+            "description": "Advances the order created in 'Create Order — valid' from RECEIVED to PROCESSING.\n\nRequires the `order_id` variable to be set (done automatically by the create request)."
+          }
+        },
+        {
+          "name": "Update Status — PROCESSING → READY",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Order status is now READY', () => {",
+                  "    pm.expect(pm.response.json().data.status).to.eql('READY');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"READY\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "status"]
+            },
+            "description": "Advances from PROCESSING to READY."
+          }
+        },
+        {
+          "name": "Update Status — READY → DELIVERED",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Order status is now DELIVERED', () => {",
+                  "    pm.expect(pm.response.json().data.status).to.eql('DELIVERED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DELIVERED\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "status"]
+            },
+            "description": "Advances from READY to DELIVERED — the final status."
+          }
+        },
+        {
+          "name": "Update Status — invalid transition (DELIVERED → RECEIVED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Response has error key', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"RECEIVED\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "status"]
+            },
+            "description": "Attempts to move a DELIVERED order back to RECEIVED. Expects HTTP 422 (Unprocessable Entity)."
+          }
+        },
+        {
+          "name": "Update Status — invalid status value",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Response has error key', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DONE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "status"]
+            },
+            "description": "Sends a status value that is not in the allowed set. Expects HTTP 400."
+          }
+        },
+        {
+          "name": "Update Status — missing status field",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error mentions status field', () => {",
+                  "    pm.expect(pm.response.json().error.toLowerCase()).to.include('status');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "{{order_id}}", "status"]
+            },
+            "description": "Sends an empty body with no status field. Expects HTTP 400."
+          }
+        },
+        {
+          "name": "Update Status — order not found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Response has error key', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PROCESSING\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/00000000-0000-0000-0000-000000000000/status",
+              "host": ["{{base_url}}"],
+              "path": ["orders", "00000000-0000-0000-0000-000000000000", "status"]
+            },
+            "description": "Uses a UUID that does not exist in the store. Expects HTTP 404."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "description": "Requests for the aggregated business metrics endpoint.",
+      "item": [
+        {
+          "name": "Get Dashboard",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has data key', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('data');",
+                  "});",
+                  "pm.test('All five metric fields are present', () => {",
+                  "    const d = pm.response.json().data;",
+                  "    pm.expect(d).to.have.property('total_orders');",
+                  "    pm.expect(d).to.have.property('total_revenue');",
+                  "    pm.expect(d).to.have.property('average_order_value');",
+                  "    pm.expect(d).to.have.property('orders_per_status');",
+                  "    pm.expect(d).to.have.property('most_common_garment');",
+                  "});",
+                  "pm.test('total_orders is a non-negative integer', () => {",
+                  "    const total = pm.response.json().data.total_orders;",
+                  "    pm.expect(total).to.be.a('number');",
+                  "    pm.expect(total).to.be.at.least(0);",
+                  "});",
+                  "pm.test('total_revenue is a non-negative number', () => {",
+                  "    pm.expect(pm.response.json().data.total_revenue).to.be.at.least(0);",
+                  "});",
+                  "pm.test('orders_per_status is an object', () => {",
+                  "    pm.expect(pm.response.json().data.orders_per_status).to.be.an('object');",
+                  "});",
+                  "pm.test('Content-Type is application/json', () => {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["dashboard"]
+            },
+            "description": "Returns aggregated metrics:\n- `total_orders` — count of all orders\n- `total_revenue` — sum of all total_bill values\n- `average_order_value` — revenue ÷ orders, rounded to 2 dp (0 when empty)\n- `orders_per_status` — dict mapping each status to its count\n- `most_common_garment` — garment type with highest total quantity (null when empty)"
+          }
+        }
+      ]
+    }
+  ]
+}

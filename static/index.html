@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laundry Order Management</title>
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f4f6f9;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────── */
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 1rem 2rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    main {
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    /* ── Cards ────────────────────────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #1a1a2e;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Forms ────────────────────────────────────────────────────────── */
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      margin-bottom: .75rem;
+    }
+
+    .form-row label {
+      display: flex;
+      flex-direction: column;
+      gap: .25rem;
+      font-size: .85rem;
+      color: #555;
+      flex: 1 1 160px;
+    }
+
+    input, select {
+      padding: .45rem .6rem;
+      border: 1px solid #d0d5dd;
+      border-radius: 5px;
+      font-size: .9rem;
+      background: #fafafa;
+      transition: border-color .15s;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #4f6ef7;
+      background: #fff;
+    }
+
+    /* ── Garment rows ─────────────────────────────────────────────────── */
+    #garments-container { display: flex; flex-direction: column; gap: .5rem; }
+
+    .garment-row {
+      display: flex;
+      gap: .5rem;
+      align-items: center;
+    }
+
+    .garment-row select { flex: 2; }
+    .garment-row input  { flex: 1; }
+
+    .btn-remove {
+      background: none;
+      border: none;
+      color: #c0392b;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 .25rem;
+      line-height: 1;
+    }
+
+    /* ── Buttons ──────────────────────────────────────────────────────── */
+    .btn {
+      padding: .5rem 1.1rem;
+      border: none;
+      border-radius: 5px;
+      font-size: .9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+
+    .btn-primary   { background: #4f6ef7; color: #fff; }
+    .btn-secondary { background: #e8ecff; color: #4f6ef7; }
+    .btn-success   { background: #27ae60; color: #fff; }
+
+    .btn-row { display: flex; gap: .75rem; margin-top: .75rem; flex-wrap: wrap; }
+
+    /* ── Feedback banner ──────────────────────────────────────────────── */
+    .feedback {
+      font-size: .85rem;
+      padding: .5rem .75rem;
+      border-radius: 5px;
+      margin-top: .75rem;
+      display: none;
+    }
+    .feedback.ok  { background: #eafaf1; color: #1e8449; display: block; }
+    .feedback.err { background: #fdecea; color: #c0392b; display: block; }
+
+    /* ── Dashboard stats ──────────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 1rem;
+    }
+
+    .stat {
+      background: #f4f6f9;
+      border-radius: 6px;
+      padding: .9rem 1rem;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #4f6ef7;
+    }
+
+    .stat-label {
+      font-size: .75rem;
+      color: #777;
+      margin-top: .2rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    /* status breakdown inside dashboard */
+    #status-breakdown {
+      margin-top: 1rem;
+      font-size: .85rem;
+    }
+
+    #status-breakdown table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    #status-breakdown th,
+    #status-breakdown td {
+      text-align: left;
+      padding: .35rem .6rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    #status-breakdown th { color: #777; font-weight: 500; }
+
+    /* ── Orders table ─────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+
+    table.orders {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+    }
+
+    table.orders th {
+      background: #f4f6f9;
+      text-align: left;
+      padding: .5rem .75rem;
+      font-weight: 600;
+      color: #555;
+      white-space: nowrap;
+    }
+
+    table.orders td {
+      padding: .5rem .75rem;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: top;
+    }
+
+    table.orders tr:last-child td { border-bottom: none; }
+
+    /* status badge */
+    .badge {
+      display: inline-block;
+      padding: .15rem .55rem;
+      border-radius: 99px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+    .badge-RECEIVED   { background: #e8f4fd; color: #2980b9; }
+    .badge-PROCESSING { background: #fef9e7; color: #d68910; }
+    .badge-READY      { background: #eafaf1; color: #1e8449; }
+    .badge-DELIVERED  { background: #f0f0f0; color: #555;    }
+
+    .empty-msg { color: #aaa; font-size: .9rem; padding: .5rem 0; }
+  </style>
+</head>
+<body>
+
+<header>🧺 Laundry Order Management</header>
+
+<main>
+
+  <!-- ── Create Order ──────────────────────────────────────────────────── -->
+  <section class="card">
+    <h2>Create Order</h2>
+
+    <div class="form-row">
+      <label>
+        Customer Name
+        <input id="customer-name" type="text" placeholder="e.g. Alice" />
+      </label>
+      <label>
+        Phone
+        <input id="phone" type="text" placeholder="e.g. 9876543210" />
+      </label>
+    </div>
+
+    <div id="garments-container">
+      <!-- garment rows injected here -->
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="addGarmentRow()">+ Add Garment</button>
+      <button class="btn btn-primary"   onclick="submitCreateOrder()">Create Order</button>
+    </div>
+
+    <div id="create-feedback" class="feedback"></div>
+  </section>
+
+  <!-- ── Update Status ─────────────────────────────────────────────────── -->
+  <section class="card">
+    <h2>Update Order Status</h2>
+
+    <div class="form-row">
+      <label>
+        Order ID
+        <input id="update-order-id" type="text" placeholder="Paste an order_id" />
+      </label>
+      <label>
+        New Status
+        <select id="update-status">
+          <option value="PROCESSING">PROCESSING</option>
+          <option value="READY">READY</option>
+          <option value="DELIVERED">DELIVERED</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="submitUpdateStatus()">Update Status</button>
+    </div>
+
+    <div id="update-feedback" class="feedback"></div>
+  </section>
+
+  <!-- ── All Orders ────────────────────────────────────────────────────── -->
+  <section class="card">
+    <h2>All Orders</h2>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="fetchOrders()">Refresh Orders</button>
+    </div>
+
+    <div class="table-wrap" style="margin-top:1rem">
+      <div id="orders-container"><p class="empty-msg">Click "Refresh Orders" to load.</p></div>
+    </div>
+  </section>
+
+  <!-- ── Dashboard ─────────────────────────────────────────────────────── -->
+  <section class="card">
+    <h2>Dashboard</h2>
+
+    <div class="btn-row">
+      <button class="btn btn-success" onclick="fetchDashboard()">Refresh Dashboard</button>
+    </div>
+
+    <div id="dashboard-container" style="margin-top:1rem">
+      <p class="empty-msg">Click "Refresh Dashboard" to load.</p>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  const API = "";   // same origin; change to "http://localhost:5000" if needed
+
+  // ── Garment row management ──────────────────────────────────────────────
+
+  const GARMENT_TYPES = ["Shirt", "Pants", "Saree"];
+
+  function addGarmentRow() {
+    const container = document.getElementById("garments-container");
+    const row = document.createElement("div");
+    row.className = "garment-row";
+    row.innerHTML = `
+      <select>
+        ${GARMENT_TYPES.map(t => `<option value="${t}">${t}</option>`).join("")}
+      </select>
+      <input type="number" min="1" value="1" placeholder="Qty" />
+      <button class="btn-remove" title="Remove" onclick="this.parentElement.remove()">✕</button>
+    `;
+    container.appendChild(row);
+  }
+
+  // Seed one garment row on load
+  addGarmentRow();
+
+  // ── Create Order ────────────────────────────────────────────────────────
+
+  async function submitCreateOrder() {
+    const customerName = document.getElementById("customer-name").value.trim();
+    const phone        = document.getElementById("phone").value.trim();
+    const fb           = document.getElementById("create-feedback");
+
+    // Collect garment rows
+    const rows     = document.querySelectorAll("#garments-container .garment-row");
+    const garments = Array.from(rows).map(row => ({
+      type:     row.querySelector("select").value,
+      quantity: parseInt(row.querySelector("input").value, 10),
+    }));
+
+    try {
+      const res  = await fetch(`${API}/orders`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ customer_name: customerName, phone, garments }),
+      });
+      const body = await res.json();
+
+      if (res.ok) {
+        showFeedback(fb, "ok",
+          `Order created! ID: ${body.data.order_id} — Bill: ₹${body.data.total_bill}`);
+        // Clear form
+        document.getElementById("customer-name").value = "";
+        document.getElementById("phone").value = "";
+        document.getElementById("garments-container").innerHTML = "";
+        addGarmentRow();
+      } else {
+        showFeedback(fb, "err", body.error || "Unknown error");
+      }
+    } catch (e) {
+      showFeedback(fb, "err", "Network error: " + e.message);
+    }
+  }
+
+  // ── Update Status ───────────────────────────────────────────────────────
+
+  async function submitUpdateStatus() {
+    const orderId   = document.getElementById("update-order-id").value.trim();
+    const newStatus = document.getElementById("update-status").value;
+    const fb        = document.getElementById("update-feedback");
+
+    if (!orderId) {
+      showFeedback(fb, "err", "Please enter an Order ID.");
+      return;
+    }
+
+    try {
+      const res  = await fetch(`${API}/orders/${encodeURIComponent(orderId)}/status`, {
+        method:  "PUT",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ status: newStatus }),
+      });
+      const body = await res.json();
+
+      if (res.ok) {
+        showFeedback(fb, "ok",
+          `Order ${orderId} updated to ${body.data.status}.`);
+      } else {
+        showFeedback(fb, "err", body.error || "Unknown error");
+      }
+    } catch (e) {
+      showFeedback(fb, "err", "Network error: " + e.message);
+    }
+  }
+
+  // ── Fetch All Orders ────────────────────────────────────────────────────
+
+  async function fetchOrders() {
+    const container = document.getElementById("orders-container");
+    container.innerHTML = "<p class='empty-msg'>Loading…</p>";
+
+    try {
+      const res  = await fetch(`${API}/orders`);
+      const body = await res.json();
+      const orders = body.data;
+
+      if (!orders || orders.length === 0) {
+        container.innerHTML = "<p class='empty-msg'>No orders found.</p>";
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="orders">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Customer</th>
+              <th>Phone</th>
+              <th>Garments</th>
+              <th>Bill (₹)</th>
+              <th>Status</th>
+              <th>Delivery</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${orders.map(o => `
+              <tr>
+                <td style="font-size:.75rem;color:#888">${o.order_id}</td>
+                <td>${escHtml(o.customer_name)}</td>
+                <td>${escHtml(o.phone)}</td>
+                <td>${formatGarments(o.garments)}</td>
+                <td>${o.total_bill}</td>
+                <td><span class="badge badge-${o.status}">${o.status}</span></td>
+                <td>${o.estimated_delivery_date}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    } catch (e) {
+      container.innerHTML = `<p class='empty-msg' style='color:#c0392b'>Error: ${e.message}</p>`;
+    }
+  }
+
+  // ── Dashboard ───────────────────────────────────────────────────────────
+
+  async function fetchDashboard() {
+    const container = document.getElementById("dashboard-container");
+    container.innerHTML = "<p class='empty-msg'>Loading…</p>";
+
+    try {
+      const res  = await fetch(`${API}/dashboard`);
+      const body = await res.json();
+      const d    = body.data;
+
+      // Build status breakdown rows
+      const statusRows = Object.entries(d.orders_per_status)
+        .map(([s, n]) => `<tr><td>${s}</td><td>${n}</td></tr>`)
+        .join("") || "<tr><td colspan='2' style='color:#aaa'>—</td></tr>";
+
+      container.innerHTML = `
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-value">${d.total_orders}</div>
+            <div class="stat-label">Total Orders</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">₹${d.total_revenue.toFixed(2)}</div>
+            <div class="stat-label">Total Revenue</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">₹${d.average_order_value}</div>
+            <div class="stat-label">Avg Order Value</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">${d.most_common_garment ?? "—"}</div>
+            <div class="stat-label">Top Garment</div>
+          </div>
+        </div>
+
+        <div id="status-breakdown">
+          <table>
+            <thead><tr><th>Status</th><th>Count</th></tr></thead>
+            <tbody>${statusRows}</tbody>
+          </table>
+        </div>
+      `;
+    } catch (e) {
+      container.innerHTML = `<p class='empty-msg' style='color:#c0392b'>Error: ${e.message}</p>`;
+    }
+  }
+
+  // ── Utilities ───────────────────────────────────────────────────────────
+
+  function showFeedback(el, type, msg) {
+    el.className = `feedback ${type}`;
+    el.textContent = msg;
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function formatGarments(garments) {
+    return garments.map(g => `${g.quantity}× ${g.type}`).join(", ");
+  }
+</script>
+
+</body>
+</html>
